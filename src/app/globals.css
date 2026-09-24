@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+/*
+ * Variables generales de SmartTable.
+ *
+ * No estamos intentando sustituir Tailwind.
+ * Estas variables se utilizan únicamente para definir
+ * algunos valores globales de identidad visual.
+ */
+:root {
+  --fondo-aplicacion: #f8fafc;
+  --texto-principal: #0f172a;
+  --texto-secundario: #64748b;
+  --borde: #e2e8f0;
+  --verde-principal: #059669;
+}
+
+/*
+ * box-sizing hace que padding y border formen parte
+ * del tamaño total declarado para cada elemento.
+ */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--fondo-aplicacion);
+}
+
+body {
+  margin: 0;
+  background: var(--fondo-aplicacion);
+  color: var(--texto-principal);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/*
+ * Mantiene los botones con la misma fuente que el resto
+ * de la aplicación.
+ */
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
