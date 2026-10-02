@@ -9,25 +9,16 @@ let socketCliente = null;
 
 let tokenUtilizado = null;
 
+/**
+ * Crea la instancia de Socket.IO.
+ *
+ * Se utiliza autoConnect=false porque primero
+ * debemos colocar el JWT en el handshake.
+ */
 function crearSocket() {
   return io(URL_SOCKET, {
-    /*
-     * Esperamos hasta tener el JWT.
-     */
     autoConnect: false,
 
-    /*
-     * Dejamos que Socket.IO utilice su estrategia
-     * normal:
-     *
-     * polling
-     * ↓
-     * upgrade a WebSocket
-     *
-     * Es más estable durante desarrollo que
-     * obligar al navegador a iniciar directamente
-     * con WebSocket.
-     */
     reconnection: true,
 
     reconnectionAttempts: Infinity,
@@ -40,6 +31,10 @@ function crearSocket() {
   });
 }
 
+/**
+ * Inicia la conexión en tiempo real utilizando
+ * el mismo JWT de la API REST.
+ */
 export function conectarSocket(token) {
   if (!token) {
     return null;
@@ -50,9 +45,8 @@ export function conectarSocket(token) {
   }
 
   /*
-   * Si cambia el JWT porque inició sesión
-   * otro usuario, debemos autenticar nuevamente
-   * la conexión.
+   * Si cambia el JWT, debemos actualizar
+   * la autenticación del handshake.
    */
   if (tokenUtilizado !== token) {
     if (socketCliente.connected) {
@@ -73,10 +67,20 @@ export function conectarSocket(token) {
   return socketCliente;
 }
 
+/**
+ * Permite consultar la instancia actual
+ * cuando otro módulo necesita conocerla.
+ */
 export function obtenerSocket() {
   return socketCliente;
 }
 
+/**
+ * Finaliza por completo la conexión.
+ *
+ * Al colocar la referencia en null garantizamos
+ * que una futura sesión cree un socket nuevo.
+ */
 export function desconectarSocket() {
   if (!socketCliente) {
     return;

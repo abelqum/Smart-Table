@@ -34,54 +34,41 @@ import { obtenerRestaurante } from "@/services/restauranteService";
 
 import { eliminarTokenSesion } from "@/lib/auth/sesion";
 
+import ProveedorTiempoReal from "@/components/providers/ProveedorTiempoReal";
+
 const opcionesNavegacion = [
   {
     nombre: "Dashboard",
-
     ruta: "/dashboard",
-
     icono: LayoutDashboard,
-
     roles: ["ADMIN", "HOSTESS"],
   },
 
   {
     nombre: "Operación",
-
     ruta: "/operacion",
-
     icono: Store,
-
     roles: ["ADMIN", "HOSTESS", "WAITER", "CLEANING"],
   },
 
   {
     nombre: "Turnos",
-
     ruta: "/turnos",
-
     icono: ListOrdered,
-
     roles: ["ADMIN", "HOSTESS"],
   },
 
   {
     nombre: "Turno actual",
-
     ruta: "/turno-actual",
-
     icono: Megaphone,
-
     roles: ["ADMIN", "HOSTESS"],
   },
 
   {
     nombre: "Historial",
-
     ruta: "/historial",
-
     icono: History,
-
     roles: ["ADMIN", "HOSTESS"],
   },
 ];
@@ -89,29 +76,22 @@ const opcionesNavegacion = [
 const opcionesAdministracion = [
   {
     nombre: "Distribución",
-
     ruta: "/distribucion",
-
     icono: Map,
-
     roles: ["ADMIN"],
   },
+
   {
     nombre: "Usuarios",
-
     ruta: "/usuarios",
-
     icono: UserCog,
-
     roles: ["ADMIN"],
   },
+
   {
     nombre: "Configuración",
-
     ruta: "/configuracion",
-
     icono: Settings,
-
     roles: ["ADMIN"],
   },
 ];
@@ -150,11 +130,8 @@ const rutasPermitidasPorRol = {
 function obtenerNombreRol(rol) {
   const roles = {
     ADMIN: "Administrador",
-
     HOSTESS: "Hostess",
-
     WAITER: "Mesero",
-
     CLEANING: "Limpieza",
   };
 
@@ -215,6 +192,10 @@ export default function EstructuraPanel({ children }) {
     staleTime: 5 * 60 * 1000,
   });
 
+  /*
+   * El restaurante sólo se consulta
+   * después de haber validado la sesión.
+   */
   const { data: restaurante } = useQuery({
     queryKey: ["restaurante"],
 
@@ -224,10 +205,15 @@ export default function EstructuraPanel({ children }) {
   });
 
   /*
+   * =====================================================
+   * SESIÓN INVÁLIDA
+   * =====================================================
+   *
    * Si el JWT dejó de ser válido,
    * eliminamos la sesión local y
    * regresamos al login.
    */
+
   useEffect(() => {
     if (!errorSesion || detalleErrorSesion?.status !== 401) {
       return;
@@ -239,12 +225,17 @@ export default function EstructuraPanel({ children }) {
   }, [errorSesion, detalleErrorSesion, router]);
 
   /*
-   * También protegemos visualmente
-   * las rutas según el rol.
+   * =====================================================
+   * PROTECCIÓN VISUAL POR ROL
+   * =====================================================
    *
-   * El backend sigue siendo la
-   * autoridad real de permisos.
+   * Esta protección mejora la navegación
+   * del cliente.
+   *
+   * El backend continúa siendo la autoridad
+   * real sobre los permisos.
    */
+
   useEffect(() => {
     if (!usuario?.rol) {
       return;
@@ -263,9 +254,30 @@ export default function EstructuraPanel({ children }) {
     }
   }, [usuario, rutaActual, router]);
 
+  /*
+   * =====================================================
+   * NAVEGACIÓN
+   * =====================================================
+   */
+
   function esRutaActiva(ruta) {
     return rutaActual === ruta || rutaActual.startsWith(`${ruta}/`);
   }
+
+  /*
+   * =====================================================
+   * CERRAR SESIÓN
+   * =====================================================
+   *
+   * Al salir:
+   *
+   * - eliminamos JWT
+   * - vaciamos React Query
+   * - navegamos al login
+   *
+   * Al desmontarse ProveedorTiempoReal,
+   * su cleanup desconectará Socket.IO.
+   */
 
   function cerrarSesion() {
     eliminarTokenSesion();
@@ -274,6 +286,12 @@ export default function EstructuraPanel({ children }) {
 
     router.replace("/login");
   }
+
+  /*
+   * =====================================================
+   * OPCIÓN DE NAVEGACIÓN
+   * =====================================================
+   */
 
   function renderizarOpcion(opcion) {
     const Icono = opcion.icono;
@@ -300,6 +318,12 @@ export default function EstructuraPanel({ children }) {
     );
   }
 
+  /*
+   * =====================================================
+   * BARRA LATERAL
+   * =====================================================
+   */
+
   function contenidoBarraLateral() {
     const navegacionPermitida = opcionesNavegacion.filter((opcion) =>
       opcion.roles.includes(usuario?.rol),
@@ -311,6 +335,8 @@ export default function EstructuraPanel({ children }) {
 
     return (
       <>
+        {/* Marca */}
+
         <div className="flex h-20 items-center gap-3 border-b border-slate-200 px-5">
           <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-sm">
             <UtensilsCrossed size={22} />
@@ -324,6 +350,8 @@ export default function EstructuraPanel({ children }) {
             <p className="text-xs text-slate-500">Gestión de mesas</p>
           </div>
         </div>
+
+        {/* Navegación */}
 
         <nav className="flex flex-1 flex-col px-3 py-5">
           <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
@@ -347,6 +375,8 @@ export default function EstructuraPanel({ children }) {
           )}
         </nav>
 
+        {/* Restaurante */}
+
         <div className="border-t border-slate-200 p-4">
           <div className="rounded-2xl bg-slate-50 p-3">
             <p className="text-xs font-medium text-slate-400">Restaurante</p>
@@ -365,6 +395,12 @@ export default function EstructuraPanel({ children }) {
     );
   }
 
+  /*
+   * =====================================================
+   * ESTADO: VALIDANDO SESIÓN
+   * =====================================================
+   */
+
   if (validandoSesion) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50">
@@ -379,6 +415,12 @@ export default function EstructuraPanel({ children }) {
     );
   }
 
+  /*
+   * =====================================================
+   * ESTADO: JWT NO VÁLIDO
+   * =====================================================
+   */
+
   if (errorSesion && detalleErrorSesion?.status === 401) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50">
@@ -388,6 +430,12 @@ export default function EstructuraPanel({ children }) {
       </div>
     );
   }
+
+  /*
+   * =====================================================
+   * ESTADO: ERROR DE SERVIDOR
+   * =====================================================
+   */
 
   if (errorSesion) {
     return (
@@ -414,152 +462,212 @@ export default function EstructuraPanel({ children }) {
     );
   }
 
+  /*
+   * =====================================================
+   * SEGURIDAD ADICIONAL
+   * =====================================================
+   */
+
   if (!usuario) {
     return null;
   }
+
+  /*
+   * A partir de aquí sabemos que:
+   *
+   * - existe JWT
+   * - /auth/me respondió correctamente
+   * - existe usuario autenticado
+   *
+   * Por eso éste es el punto correcto
+   * para montar ProveedorTiempoReal.
+   */
 
   const iniciales = obtenerIniciales(usuario.nombre);
 
   const nombreRol = obtenerNombreRol(usuario.rol);
 
+  /*
+   * =====================================================
+   * PANEL AUTENTICADO + SOCKET.IO
+   * =====================================================
+   */
+
   return (
-    <div className="min-h-screen bg-slate-50">
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-slate-200 bg-white lg:flex">
-        {contenidoBarraLateral()}
-      </aside>
+    <ProveedorTiempoReal>
+      <div className="min-h-screen bg-slate-50">
+        {/* ============================================= */}
+        {/* BARRA LATERAL DESKTOP */}
+        {/* ============================================= */}
 
-      {menuMovilAbierto && (
-        <button
-          type="button"
-          aria-label="Cerrar menú"
-          onClick={() => setMenuMovilAbierto(false)}
-          className="fixed inset-0 z-40 bg-slate-950/40 lg:hidden"
-        />
-      )}
+        <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-slate-200 bg-white lg:flex">
+          {contenidoBarraLateral()}
+        </aside>
 
-      <aside
-        className={combinarClases(
-          "fixed inset-y-0 left-0 z-50 flex w-72 flex-col bg-white shadow-2xl transition-transform duration-300 lg:hidden",
+        {/* ============================================= */}
+        {/* FONDO MENÚ MÓVIL */}
+        {/* ============================================= */}
 
-          menuMovilAbierto ? "translate-x-0" : "-translate-x-full",
+        {menuMovilAbierto && (
+          <button
+            type="button"
+            aria-label="Cerrar menú"
+            onClick={() => setMenuMovilAbierto(false)}
+            className="fixed inset-0 z-40 bg-slate-950/40 lg:hidden"
+          />
         )}
-      >
-        <button
-          type="button"
-          onClick={() => setMenuMovilAbierto(false)}
-          className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100"
-          aria-label="Cerrar menú"
+
+        {/* ============================================= */}
+        {/* BARRA LATERAL MÓVIL */}
+        {/* ============================================= */}
+
+        <aside
+          className={combinarClases(
+            "fixed inset-y-0 left-0 z-50 flex w-72 flex-col bg-white shadow-2xl transition-transform duration-300 lg:hidden",
+
+            menuMovilAbierto ? "translate-x-0" : "-translate-x-full",
+          )}
         >
-          <X size={20} />
-        </button>
+          <button
+            type="button"
+            onClick={() => setMenuMovilAbierto(false)}
+            className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100"
+            aria-label="Cerrar menú"
+          >
+            <X size={20} />
+          </button>
 
-        {contenidoBarraLateral()}
-      </aside>
+          {contenidoBarraLateral()}
+        </aside>
 
-      <div className="lg:pl-64">
-        <header className="sticky top-0 z-30 flex h-20 items-center justify-between border-b border-slate-200 bg-white/95 px-4 backdrop-blur md:px-6 lg:px-8">
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setMenuMovilAbierto(true)}
-              className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 lg:hidden"
-              aria-label="Abrir menú"
-            >
-              <Menu size={20} />
-            </button>
+        {/* ============================================= */}
+        {/* CONTENIDO PRINCIPAL */}
+        {/* ============================================= */}
 
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wider text-slate-400">
-                SmartTable
-              </p>
+        <div className="lg:pl-64">
+          {/* =========================================== */}
+          {/* ENCABEZADO */}
+          {/* =========================================== */}
 
-              <p className="text-sm font-semibold text-slate-800">
-                Panel de operación
-              </p>
-            </div>
-          </div>
+          <header className="sticky top-0 z-30 flex h-20 items-center justify-between border-b border-slate-200 bg-white/95 px-4 backdrop-blur md:px-6 lg:px-8">
+            <div className="flex items-center gap-3">
+              {/* Menú móvil */}
 
-          <div className="flex items-center gap-2 sm:gap-3">
-            <span className="hidden rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 sm:inline-flex">
-              Prototipo 2
-            </span>
-
-            <button
-              type="button"
-              className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-600 transition hover:bg-slate-50"
-              aria-label="Notificaciones"
-            >
-              <Bell size={19} />
-            </button>
-
-            <div className="relative">
               <button
                 type="button"
-                onClick={() => setMenuUsuarioAbierto((valor) => !valor)}
-                className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-1.5 pr-2 transition hover:bg-slate-50"
+                onClick={() => setMenuMovilAbierto(true)}
+                className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 lg:hidden"
+                aria-label="Abrir menú"
               >
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900 text-xs font-bold text-white">
-                  {iniciales}
-                </div>
-
-                <div className="hidden max-w-40 text-left md:block">
-                  <p className="truncate text-xs font-semibold text-slate-800">
-                    {usuario.nombre}
-                  </p>
-
-                  <p className="truncate text-[11px] text-slate-500">
-                    {nombreRol}
-                  </p>
-                </div>
-
-                <ChevronDown
-                  size={15}
-                  className="hidden text-slate-400 md:block"
-                />
+                <Menu size={20} />
               </button>
 
-              {menuUsuarioAbierto && (
-                <div className="absolute right-0 top-[calc(100%+8px)] w-64 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
-                  <div className="border-b border-slate-100 p-4">
-                    <p className="truncate text-sm font-semibold text-slate-900">
+              {/* Título */}
+
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wider text-slate-400">
+                  SmartTable
+                </p>
+
+                <p className="text-sm font-semibold text-slate-800">
+                  Panel de operación
+                </p>
+              </div>
+            </div>
+
+            {/* Acciones del usuario */}
+
+            <div className="flex items-center gap-2 sm:gap-3">
+              <span className="hidden rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 sm:inline-flex">
+                Prototipo 2
+              </span>
+
+              <button
+                type="button"
+                className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-600 transition hover:bg-slate-50"
+                aria-label="Notificaciones"
+              >
+                <Bell size={19} />
+              </button>
+
+              {/* Menú del usuario */}
+
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setMenuUsuarioAbierto((valor) => !valor)}
+                  className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-1.5 pr-2 transition hover:bg-slate-50"
+                >
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900 text-xs font-bold text-white">
+                    {iniciales}
+                  </div>
+
+                  <div className="hidden max-w-40 text-left md:block">
+                    <p className="truncate text-xs font-semibold text-slate-800">
                       {usuario.nombre}
                     </p>
 
-                    <p className="mt-1 truncate text-xs text-slate-500">
-                      {usuario.correo}
-                    </p>
-
-                    <span className="mt-3 inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+                    <p className="truncate text-[11px] text-slate-500">
                       {nombreRol}
-                    </span>
+                    </p>
                   </div>
 
-                  <div className="p-2">
-                    <Link
-                      href="/mi-cuenta"
-                      onClick={() => setMenuUsuarioAbierto(false)}
-                      className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
-                    >
-                      <UserRound size={17} />
-                      Mi cuenta
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={cerrarSesion}
-                      className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-rose-600 transition hover:bg-rose-50"
-                    >
-                      <LogOut size={17} />
-                      Cerrar sesión
-                    </button>
+                  <ChevronDown
+                    size={15}
+                    className="hidden text-slate-400 md:block"
+                  />
+                </button>
+
+                {/* Dropdown */}
+
+                {menuUsuarioAbierto && (
+                  <div className="absolute right-0 top-[calc(100%+8px)] w-64 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
+                    <div className="border-b border-slate-100 p-4">
+                      <p className="truncate text-sm font-semibold text-slate-900">
+                        {usuario.nombre}
+                      </p>
+
+                      <p className="mt-1 truncate text-xs text-slate-500">
+                        {usuario.correo}
+                      </p>
+
+                      <span className="mt-3 inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+                        {nombreRol}
+                      </span>
+                    </div>
+
+                    <div className="p-2">
+                      <Link
+                        href="/mi-cuenta"
+                        onClick={() => setMenuUsuarioAbierto(false)}
+                        className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+                      >
+                        <UserRound size={17} />
+                        Mi cuenta
+                      </Link>
+
+                      <button
+                        type="button"
+                        onClick={cerrarSesion}
+                        className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-rose-600 transition hover:bg-rose-50"
+                      >
+                        <LogOut size={17} />
+                        Cerrar sesión
+                      </button>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
-          </div>
-        </header>
+          </header>
 
-        <main className="p-4 md:p-6 lg:p-8">{children}</main>
+          {/* =========================================== */}
+          {/* PÁGINA ACTUAL */}
+          {/* =========================================== */}
+
+          <main className="p-4 md:p-6 lg:p-8">{children}</main>
+        </div>
       </div>
-    </div>
+    </ProveedorTiempoReal>
   );
 }

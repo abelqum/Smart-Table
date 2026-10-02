@@ -59,15 +59,20 @@ export default function ProveedorTiempoReal({ children }) {
       return;
     }
 
-    function invalidarRecurso(recurso) {
+    async function invalidarRecurso(recurso) {
       const clave = CLAVES_POR_RECURSO[recurso];
 
       if (!clave) {
         return;
       }
 
-      clienteConsultas.invalidateQueries({
+      await clienteConsultas.invalidateQueries({
         queryKey: clave,
+      });
+
+      await clienteConsultas.refetchQueries({
+        queryKey: clave,
+        type: "active",
       });
     }
 
@@ -102,17 +107,17 @@ export default function ProveedorTiempoReal({ children }) {
       console.info("SmartTable confirmó la conexión realtime.", datos ?? "");
     }
 
-    function manejarActualizacion(datos) {
+    async function manejarActualizacion(datos) {
       const recursos = Array.isArray(datos?.recursos) ? datos.recursos : [];
 
       if (recursos.length === 0) {
         return;
       }
 
-      console.debug("Actualización SmartTable:", recursos);
+      console.info("Actualización SmartTable recibida:", datos);
 
       for (const recurso of recursos) {
-        invalidarRecurso(recurso);
+        await invalidarRecurso(recurso);
       }
     }
 
