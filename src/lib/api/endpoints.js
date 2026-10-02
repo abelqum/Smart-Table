@@ -1,18 +1,12 @@
-/**
- * Endpoints oficiales de SmartTable.
- *
- * Este archivo representa el contrato entre:
- *
- * - Next.js
- * - Backend Express
- * - futura aplicación Android
- *
- * Cuando construyamos el backend deberemos respetar estas rutas.
- */
 export const ENDPOINTS = {
   auth: {
     login: "/auth/login",
+
     perfil: "/auth/me",
+
+    actualizarPerfil: "/auth/me",
+
+    cambiarContrasena: "/auth/me/contrasena",
   },
 
   dashboard: {
@@ -21,11 +15,13 @@ export const ENDPOINTS = {
 
   restaurante: {
     obtener: "/restaurante",
+
     actualizar: "/restaurante",
   },
 
   pisos: {
     listar: "/pisos",
+
     crear: "/pisos",
 
     actualizar(idPiso) {
@@ -39,6 +35,7 @@ export const ENDPOINTS = {
 
   mesas: {
     listar: "/mesas",
+
     crear: "/mesas",
 
     obtener(idMesa) {
@@ -72,10 +69,39 @@ export const ENDPOINTS = {
 
   turnos: {
     listar: "/turnos",
+
     crear: "/turnos",
+
+    actual: "/turnos/actual",
+
+    paraMesa(idMesa) {
+      return `/turnos/para-mesa/${idMesa}`;
+    },
+
+    actualizar(idTurno) {
+      return `/turnos/${idTurno}`;
+    },
+
+    llamar(idTurno) {
+      return `/turnos/${idTurno}/llamar`;
+    },
 
     cancelar(idTurno) {
       return `/turnos/${idTurno}/cancelar`;
+    },
+  },
+
+  usuarios: {
+    listar: "/usuarios",
+
+    crear: "/usuarios",
+
+    actualizar(idUsuario) {
+      return `/usuarios/${idUsuario}`;
+    },
+
+    restablecerContrasena(idUsuario) {
+      return `/usuarios/${idUsuario}/restablecer-contrasena`;
     },
   },
 

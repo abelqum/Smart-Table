@@ -14,11 +14,14 @@ import {
   ListOrdered,
   LogOut,
   Map,
+  Megaphone,
   Menu,
   Settings,
   Store,
   UtensilsCrossed,
   X,
+  UserCog,
+  UserRound,
 } from "lucide-react";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -34,57 +37,133 @@ import { eliminarTokenSesion } from "@/lib/auth/sesion";
 const opcionesNavegacion = [
   {
     nombre: "Dashboard",
+
     ruta: "/dashboard",
+
     icono: LayoutDashboard,
+
+    roles: ["ADMIN", "HOSTESS"],
   },
+
   {
     nombre: "Operación",
+
     ruta: "/operacion",
+
     icono: Store,
+
+    roles: ["ADMIN", "HOSTESS", "WAITER", "CLEANING"],
   },
+
   {
     nombre: "Turnos",
+
     ruta: "/turnos",
+
     icono: ListOrdered,
+
+    roles: ["ADMIN", "HOSTESS"],
   },
+
+  {
+    nombre: "Turno actual",
+
+    ruta: "/turno-actual",
+
+    icono: Megaphone,
+
+    roles: ["ADMIN", "HOSTESS"],
+  },
+
   {
     nombre: "Historial",
+
     ruta: "/historial",
+
     icono: History,
+
+    roles: ["ADMIN", "HOSTESS"],
   },
 ];
 
 const opcionesAdministracion = [
   {
     nombre: "Distribución",
+
     ruta: "/distribucion",
+
     icono: Map,
+
+    roles: ["ADMIN"],
+  },
+  {
+    nombre: "Usuarios",
+
+    ruta: "/usuarios",
+
+    icono: UserCog,
+
+    roles: ["ADMIN"],
   },
   {
     nombre: "Configuración",
+
     ruta: "/configuracion",
+
     icono: Settings,
+
+    roles: ["ADMIN"],
   },
 ];
 
+const rutasPermitidasPorRol = {
+  ADMIN: [
+    "/dashboard",
+    "/operacion",
+    "/turnos",
+    "/turno-actual",
+    "/historial",
+    "/distribucion",
+    "/usuarios",
+    "/configuracion",
+    "/mi-cuenta",
+  ],
+
+  HOSTESS: [
+    "/dashboard",
+    "/operacion",
+    "/turnos",
+    "/turno-actual",
+    "/historial",
+    "/mi-cuenta",
+  ],
+
+  WAITER: ["/operacion", "/mi-cuenta"],
+
+  CLEANING: ["/operacion", "/mi-cuenta"],
+};
+
 /**
- * Convierte el rol técnico recibido desde la API
- * en una etiqueta adecuada para la interfaz.
+ * Convierte el rol técnico recibido
+ * desde la API a una etiqueta legible.
  */
 function obtenerNombreRol(rol) {
   const roles = {
     ADMIN: "Administrador",
+
     HOSTESS: "Hostess",
+
     WAITER: "Mesero",
+
     CLEANING: "Limpieza",
-    FLOOR_MANAGER: "Jefe de piso",
   };
 
   return roles[rol] ?? rol ?? "Usuario";
 }
 
 /**
- * Obtiene hasta dos iniciales del nombre del usuario.
+ * Obtiene hasta dos iniciales
+ * del nombre del usuario.
  */
 function obtenerIniciales(nombre) {
   if (!nombre) {
@@ -110,53 +189,44 @@ export default function EstructuraPanel({ children }) {
 
   const [menuUsuarioAbierto, setMenuUsuarioAbierto] = useState(false);
 
-  /* =====================================================
-     SESIÓN
-  ====================================================== */
-
-  /**
-   * GET /api/auth/me
-   *
-   * Ésta es la consulta que valida que la sesión
-   * almacenada siga siendo válida.
+  /*
+   * =====================================================
+   * SESIÓN
+   * =====================================================
    */
+
   const {
     data: usuario,
+
     isLoading: validandoSesion,
+
     isError: errorSesion,
+
     error: detalleErrorSesion,
+
     refetch: reintentarSesion,
   } = useQuery({
     queryKey: ["sesion"],
+
     queryFn: obtenerPerfil,
 
-    /*
-     * Una sesión inválida no necesita múltiples
-     * reintentos automáticos.
-     */
     retry: false,
 
     staleTime: 5 * 60 * 1000,
   });
 
-  /*
-   * Obtenemos también el nombre real configurado
-   * del restaurante para mostrarlo en el panel.
-   */
   const { data: restaurante } = useQuery({
     queryKey: ["restaurante"],
+
     queryFn: obtenerRestaurante,
 
     enabled: Boolean(usuario),
   });
 
-  /**
-   * Si el servidor responde 401, eliminamos el token
-   * local y enviamos al usuario al login.
-   *
-   * No utilizamos setState dentro del efecto.
-   * Estamos sincronizando React con el router y
-   * almacenamiento externo.
+  /*
+   * Si el JWT dejó de ser válido,
+   * eliminamos la sesión local y
+   * regresamos al login.
    */
   useEffect(() => {
     if (!errorSesion || detalleErrorSesion?.status !== 401) {
@@ -168,23 +238,38 @@ export default function EstructuraPanel({ children }) {
     router.replace("/login");
   }, [errorSesion, detalleErrorSesion, router]);
 
+  /*
+   * También protegemos visualmente
+   * las rutas según el rol.
+   *
+   * El backend sigue siendo la
+   * autoridad real de permisos.
+   */
+  useEffect(() => {
+    if (!usuario?.rol) {
+      return;
+    }
+
+    const rutasPermitidas = rutasPermitidasPorRol[usuario.rol] ?? [
+      "/operacion",
+    ];
+
+    const rutaPermitida = rutasPermitidas.some(
+      (ruta) => rutaActual === ruta || rutaActual.startsWith(`${ruta}/`),
+    );
+
+    if (!rutaPermitida) {
+      router.replace(rutasPermitidas[0] ?? "/operacion");
+    }
+  }, [usuario, rutaActual, router]);
+
   function esRutaActiva(ruta) {
     return rutaActual === ruta || rutaActual.startsWith(`${ruta}/`);
   }
 
   function cerrarSesion() {
-    /*
-     * JWT es stateless en este Prototipo 1.
-     * Cerrar sesión consiste en eliminar el token.
-     */
     eliminarTokenSesion();
 
-    /*
-     * Eliminamos información cacheada asociada
-     * a la sesión anterior.
-     *
-     * Esto NO elimina los datos de la API Mock.
-     */
     clienteConsultas.clear();
 
     router.replace("/login");
@@ -216,9 +301,16 @@ export default function EstructuraPanel({ children }) {
   }
 
   function contenidoBarraLateral() {
+    const navegacionPermitida = opcionesNavegacion.filter((opcion) =>
+      opcion.roles.includes(usuario?.rol),
+    );
+
+    const administracionPermitida = opcionesAdministracion.filter((opcion) =>
+      opcion.roles.includes(usuario?.rol),
+    );
+
     return (
       <>
-        {/* Marca */}
         <div className="flex h-20 items-center gap-3 border-b border-slate-200 px-5">
           <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-sm">
             <UtensilsCrossed size={22} />
@@ -233,26 +325,28 @@ export default function EstructuraPanel({ children }) {
           </div>
         </div>
 
-        {/* Navegación */}
         <nav className="flex flex-1 flex-col px-3 py-5">
           <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
             Operación
           </p>
 
           <div className="space-y-1">
-            {opcionesNavegacion.map(renderizarOpcion)}
+            {navegacionPermitida.map(renderizarOpcion)}
           </div>
 
-          <p className="mb-2 mt-8 px-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
-            Administración
-          </p>
+          {administracionPermitida.length > 0 && (
+            <>
+              <p className="mb-2 mt-8 px-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                Administración
+              </p>
 
-          <div className="space-y-1">
-            {opcionesAdministracion.map(renderizarOpcion)}
-          </div>
+              <div className="space-y-1">
+                {administracionPermitida.map(renderizarOpcion)}
+              </div>
+            </>
+          )}
         </nav>
 
-        {/* Restaurante */}
         <div className="border-t border-slate-200 p-4">
           <div className="rounded-2xl bg-slate-50 p-3">
             <p className="text-xs font-medium text-slate-400">Restaurante</p>
@@ -271,10 +365,6 @@ export default function EstructuraPanel({ children }) {
     );
   }
 
-  /* =====================================================
-     VALIDACIÓN DE SESIÓN
-  ====================================================== */
-
   if (validandoSesion) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50">
@@ -289,9 +379,6 @@ export default function EstructuraPanel({ children }) {
     );
   }
 
-  /*
-   * Si recibimos 401, useEffect realizará la redirección.
-   */
   if (errorSesion && detalleErrorSesion?.status === 401) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50">
@@ -302,10 +389,6 @@ export default function EstructuraPanel({ children }) {
     );
   }
 
-  /*
-   * Otros errores no deben cerrar la sesión automáticamente.
-   * Podría tratarse simplemente de una caída temporal de API.
-   */
   if (errorSesion) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50 p-6">
@@ -339,18 +422,12 @@ export default function EstructuraPanel({ children }) {
 
   const nombreRol = obtenerNombreRol(usuario.rol);
 
-  /* =====================================================
-     PANEL
-  ====================================================== */
-
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Sidebar escritorio */}
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-slate-200 bg-white lg:flex">
         {contenidoBarraLateral()}
       </aside>
 
-      {/* Fondo menú móvil */}
       {menuMovilAbierto && (
         <button
           type="button"
@@ -360,7 +437,6 @@ export default function EstructuraPanel({ children }) {
         />
       )}
 
-      {/* Sidebar móvil */}
       <aside
         className={combinarClases(
           "fixed inset-y-0 left-0 z-50 flex w-72 flex-col bg-white shadow-2xl transition-transform duration-300 lg:hidden",
@@ -380,9 +456,7 @@ export default function EstructuraPanel({ children }) {
         {contenidoBarraLateral()}
       </aside>
 
-      {/* Área principal */}
       <div className="lg:pl-64">
-        {/* Header */}
         <header className="sticky top-0 z-30 flex h-20 items-center justify-between border-b border-slate-200 bg-white/95 px-4 backdrop-blur md:px-6 lg:px-8">
           <div className="flex items-center gap-3">
             <button
@@ -407,10 +481,9 @@ export default function EstructuraPanel({ children }) {
 
           <div className="flex items-center gap-2 sm:gap-3">
             <span className="hidden rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 sm:inline-flex">
-              Prototipo 1
+              Prototipo 2
             </span>
 
-            {/* Notificaciones visuales */}
             <button
               type="button"
               className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-600 transition hover:bg-slate-50"
@@ -419,7 +492,6 @@ export default function EstructuraPanel({ children }) {
               <Bell size={19} />
             </button>
 
-            {/* Usuario */}
             <div className="relative">
               <button
                 type="button"
@@ -446,7 +518,6 @@ export default function EstructuraPanel({ children }) {
                 />
               </button>
 
-              {/* Menú de usuario */}
               {menuUsuarioAbierto && (
                 <div className="absolute right-0 top-[calc(100%+8px)] w-64 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
                   <div className="border-b border-slate-100 p-4">
@@ -464,6 +535,14 @@ export default function EstructuraPanel({ children }) {
                   </div>
 
                   <div className="p-2">
+                    <Link
+                      href="/mi-cuenta"
+                      onClick={() => setMenuUsuarioAbierto(false)}
+                      className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+                    >
+                      <UserRound size={17} />
+                      Mi cuenta
+                    </Link>
                     <button
                       type="button"
                       onClick={cerrarSesion}

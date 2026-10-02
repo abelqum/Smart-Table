@@ -1,12 +1,11 @@
 "use client";
 
 import { useForm } from "react-hook-form";
+
 import { zodResolver } from "@hookform/resolvers/zod";
+
 import { z } from "zod";
 
-/*
- * Reglas del formulario.
- */
 const esquemaTurno = z.object({
   nombre: z.string().trim().min(2, "Ingresa el nombre del cliente."),
 
@@ -15,42 +14,47 @@ const esquemaTurno = z.object({
     .int("La cantidad debe ser un número entero.")
     .min(1, "Debe existir al menos una persona.")
     .max(30, "El máximo permitido es de 30 personas."),
+
+  pisoPreferidoId: z.string().optional(),
 });
 
-export default function FormularioTurno({ onRegistrar, onCancelar }) {
+export default function FormularioTurno({
+  pisos = [],
+  turnoInicial = null,
+  onGuardar,
+  onCancelar,
+}) {
+  const esEdicion = Boolean(turnoInicial);
+
   const {
     register,
     handleSubmit,
-    reset,
 
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: zodResolver(esquemaTurno),
 
     defaultValues: {
-      nombre: "",
-      personas: 2,
+      nombre: turnoInicial?.nombre ?? "",
+
+      personas: turnoInicial?.personas ?? 2,
+
+      pisoPreferidoId: turnoInicial?.pisoPreferidoId
+        ? String(turnoInicial.pisoPreferidoId)
+        : "",
     },
   });
 
   async function enviarFormulario(datos) {
-    const resultado = await onRegistrar(datos);
+    return onGuardar({
+      nombre: datos.nombre,
 
-    /*
-     * Si el componente padre no devuelve false,
-     * consideramos exitoso el registro.
-     */
-    if (resultado !== false) {
-      reset();
-    }
-  }
+      personas: datos.personas,
 
-  function cancelarFormulario() {
-    reset();
-
-    if (onCancelar) {
-      onCancelar();
-    }
+      pisoPreferidoId: datos.pisoPreferidoId
+        ? Number(datos.pisoPreferidoId)
+        : null,
+    });
   }
 
   return (
@@ -66,7 +70,7 @@ export default function FormularioTurno({ onRegistrar, onCancelar }) {
         <input
           id="nombre"
           type="text"
-          placeholder="Ej. Gerardo"
+          placeholder="Ej. Carlos"
           {...register("nombre")}
           className="h-11 w-full rounded-xl border border-slate-200 px-3.5 text-sm text-slate-900 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
         />
@@ -102,11 +106,39 @@ export default function FormularioTurno({ onRegistrar, onCancelar }) {
         )}
       </div>
 
+      <div>
+        <label
+          htmlFor="pisoPreferidoId"
+          className="mb-2 block text-sm font-semibold text-slate-700"
+        >
+          Preferencia de zona
+        </label>
+
+        <select
+          id="pisoPreferidoId"
+          {...register("pisoPreferidoId")}
+          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm text-slate-900 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
+        >
+          <option value="">Sin preferencia</option>
+
+          {pisos.map((piso) => (
+            <option key={piso.id} value={piso.id}>
+              {piso.nombre}
+            </option>
+          ))}
+        </select>
+
+        <p className="mt-2 text-xs leading-5 text-slate-400">
+          La preferencia ayuda al personal a organizar la espera, pero no obliga
+          a asignar al cliente a esa zona.
+        </p>
+      </div>
+
       <div className="flex justify-end gap-3 border-t border-slate-100 pt-5">
         {onCancelar && (
           <button
             type="button"
-            onClick={cancelarFormulario}
+            onClick={onCancelar}
             className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
           >
             Cancelar
@@ -118,7 +150,11 @@ export default function FormularioTurno({ onRegistrar, onCancelar }) {
           disabled={isSubmitting}
           className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {isSubmitting ? "Registrando..." : "Registrar turno"}
+          {isSubmitting
+            ? "Guardando..."
+            : esEdicion
+              ? "Guardar cambios"
+              : "Registrar turno"}
         </button>
       </div>
     </form>
